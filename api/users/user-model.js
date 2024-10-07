@@ -14,7 +14,6 @@ async function findPosts(user_id) {
       .join('users as u', 'p.user_id', '=', 'u.id')
       .where('u.id', user_id)
 
-      console.log(rows)
       return rows
   /*
 
@@ -41,9 +40,24 @@ join users as u
   */
 }
 
-function find() {
-  return db('users')
+async function find() {
+  const rows = await db('users as u')
+  .leftJoin('posts as p', 'u.id', '=', 'p.user_id')
+  .count('p.id as post_count')
+  .groupBy('u.id')
+  .select('u.id as user_id', 'username')
+
+  return rows
   /*
+
+    select 
+      u.id as user_id,
+      username,
+      count(p.id) as post_count
+  from users as u
+  left join posts as p
+      on u.id = p.user_id
+  group by u.id;
     Improve so it resolves this structure:
 
     [
@@ -62,10 +76,39 @@ function find() {
   */
 }
 
-function findById(id) {
-  return db('users').where({ id }).first()
+async function findById(id) {
+  const rows = await db('users as u')
+  .leftJoin('posts as p', 'u.id', '=', 'p.user_id')
+  .select(
+    'u.id as user_id', 
+    'username', 
+    'contents', 
+    'p.id as post_id'
+  )
+  .where('u.id', id)
+
+  let result = rows.reduce((acc, row) => {
+    if (row.contents) {
+      acc.posts.push({ contents: row.contents, post_id: row.post_id})
+    }
+    return acc
+  }, {
+    user_id: rows[0].user_id, username: rows[0].username, posts: []
+  })
+
+  return result
   /*
     Improve so it resolves this structure:
+
+select 
+    u.id as user_id,
+    username,
+    contents,
+    p.id as post_id
+from users as u
+left join posts as p
+    on u.id = p.user_id
+where u.id = 1;
 
     {
       "user_id": 2,
